@@ -8,8 +8,10 @@ import android.os.Parcelable
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import com.example.ycb.mywuzi.OnGameStatusChangeListener
+import android.widget.Button
+import com.example.ycb.mywuzi.imp.OnGameStatusChangeListener
 import com.example.ycb.mywuzi.R
+import com.example.ycb.mywuzi.base.BaseActivity
 import java.util.ArrayList
 
 /**
@@ -32,9 +34,9 @@ class WZQPanel : View{
     //是否将要下白棋
     private var mIsWhite = true
     //已下的白棋的列表
-    private var mWhitePieceArray: ArrayList<Point>? = ArrayList()
+    private var mWhitePieceArray: ArrayList<Point> = ArrayList()
     //已下的黑棋的列表
-    private var mBlackPieceArray: ArrayList<Point>? = ArrayList()
+    private var mBlackPieceArray: ArrayList<Point> = ArrayList()
 
     //游戏是否结束
     private var mIsGameOver: Boolean = false
@@ -97,6 +99,37 @@ class WZQPanel : View{
             mBlackPiece = BitmapFactory.decodeResource(resources, R.mipmap.stone_b1)
         }
     }
+
+    fun retractWhite() : Boolean{
+        if(mWhitePieceArray.size == 0){
+            (context as BaseActivity).showToast("棋盘上没有白棋")
+            return false
+        }
+
+        if(mWhitePieceArray.size != 0 && !mIsWhite){
+            mWhitePieceArray.remove(mWhitePieceArray.get(mWhitePieceArray.size -1))
+            mIsWhite = !mIsWhite
+            invalidate()
+            return true
+        }
+        return false
+    }
+
+    fun retractBlack() : Boolean{
+        if(mBlackPieceArray.size == 0){
+            (context as BaseActivity).showToast("棋盘上没有黑棋")
+            return false
+        }
+
+        if(mBlackPieceArray?.size != 0 && mIsWhite){
+            mBlackPieceArray?.remove(mBlackPieceArray.get(mBlackPieceArray.size - 1))
+            mIsWhite = !mIsWhite
+            invalidate()
+            return true
+        }
+        return false
+    }
+
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val widthSize = View.MeasureSpec.getSize(widthMeasureSpec)
