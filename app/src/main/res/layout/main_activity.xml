@@ -66,6 +66,6 @@
     <android.support.constraint.Guideline
             android:orientation="horizontal"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" app:layout_constraintGuide_begin="357dp" android:id="@+id/guideline"/>
+            android:layout_height="wrap_content" app:layout_constraintGuide_begin="434dp" android:id="@+id/guideline"/>
 
 </android.support.constraint.ConstraintLayout>

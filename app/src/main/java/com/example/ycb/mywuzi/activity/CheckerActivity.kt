@@ -2,28 +2,37 @@ package com.example.ycb.mywuzi.activity
 
 import android.content.Context
 import android.content.DialogInterface
-import android.os.Build
 import android.os.Bundle
 import android.support.v7.app.AlertDialog
-import android.view.WindowManager
+import android.view.View
+import android.widget.SimpleAdapter
 import cdc.sed.yff.listener.Interface_ActivityListener
 import cdc.sed.yff.os.*
 import com.example.ycb.mywuzi.R
+import com.example.ycb.mywuzi.ai.AI
+import com.example.ycb.mywuzi.ai.AICallBack
+import com.example.ycb.mywuzi.util.Const.Companion.BLACK_WIN
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENJI
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENREN
+import com.example.ycb.mywuzi.util.Const.Companion.NO_WIN
+import com.example.ycb.mywuzi.util.Const.Companion.WHITE_WIN
 import com.example.ycb.mywuzi.base.BaseActivity
 import com.example.ycb.mywuzi.imp.OnGameStatusChangeListener
-import com.example.ycb.mywuzi.util.UpdateHelper
-import com.example.ycb.mywuzi.widget.WZQPanel
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_BLUE
 import kotlinx.android.synthetic.main.checker_acticity.*
-import kotlinx.android.synthetic.main.main_activity.*
-import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.concurrent.timerTask
+
+
 
 /**
  * Created by biao on 2019/1/24.
  * 棋盘
  */
 class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
+
+    private var model_type = 0;
     private lateinit var alertBuilder: AlertDialog.Builder
     private lateinit var alertDialog: AlertDialog
     private var whiteWin = 0
@@ -47,27 +56,82 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
 
         setContentView(R.layout.checker_acticity)
         initAd()
-        initTime()
+//        initTime()
         initDialog()
-        initListener()
+        initGetParentIntent()
     }
 
-    private fun initListener() {
-        btn_retract_white.run {
-            setOnClickListener {
-                if (id_wuziqi.retractWhite()) {
-                    var isSuccess = PointsManager.getInstance(this@CheckerActivity).spendPoints(integralConsume);
+    private fun initGetParentIntent() {
+        model_type = intent.getIntExtra(MODEL_TYPE,0);
+        id_wuziqi.setModel(model_type)
+        when(model_type){
+            MODEL_TYPE_RENREN ->{
+                alertBuilder?.setPositiveButton("确认",
+                    DialogInterface.OnClickListener { dialog, which ->
+                        initTime()})
+                alertBuilder?.setNegativeButton("取消",
+                    DialogInterface.OnClickListener { dialog, which -> this@CheckerActivity.finish() })
+                alertBuilder?.setCancelable(false)
+                alertBuilder?.setTitle("准备完毕")
+                alertDialog = alertBuilder?.create()
+                alertDialog?.show()
+
+                btn_retract_white.run {
+                    setOnClickListener {
+                        if (id_wuziqi.retractWhiteRenRen()) {
+                            var isSuccess = PointsManager.getInstance(this@CheckerActivity).spendPoints(integralConsume);
+                        }
+                    }
+                    text = "悔白棋(${integralConsume.toInt()}积分)"
+                }
+                btn_retract_black.run {
+                    setOnClickListener {
+                        if(id_wuziqi.retractBlackRenRen()){
+                            var isSuccess = PointsManager.getInstance(this@CheckerActivity).spendPoints(integralConsume);
+                        }
+                    }
+                    text = "悔黑棋(${integralConsume.toInt()}积分)"
                 }
             }
-            text = "悔白棋(${integralConsume.toInt()}积分)"
-        }
-        btn_retract_black.run {
-            setOnClickListener {
-                if(id_wuziqi.retractBlack()){
-                    var isSuccess = PointsManager.getInstance(this@CheckerActivity).spendPoints(integralConsume);
+            MODEL_TYPE_RENJI->{
+                btn_retract_black.visibility = View.GONE
+                alertBuilder?.setCancelable(false)
+                alertBuilder?.setTitle("请选择等级")
+                var keys = mutableListOf<MutableMap<String,String>>()
+                val key1 = mutableMapOf<String,String>()
+                key1["Name"] = "简单"
+                keys.add(key1)
+                val key2 = mutableMapOf<String,String>()
+                key2["Name"] = "一般"
+                keys.add(key2)
+                val key3 = mutableMapOf<String,String>()
+                key3["Name"] = "困难"
+                keys.add(key3)
+
+                var simpleAdapter = SimpleAdapter(this@CheckerActivity,keys,R.layout.degree_adapter, arrayOf("Name"),
+                    intArrayOf(R.id.tv_degree_name)
+                )
+                alertBuilder.setAdapter(simpleAdapter,object: DialogInterface.OnClickListener{
+                    override fun onClick(dialog: DialogInterface?, which: Int) {
+                        tv_checker_degree.text = "比赛等级:${keys[which].get("Name").toString()}"
+                        initTime()
+                    }
+                })
+                alertDialog = alertBuilder?.create()
+                alertDialog?.show()
+
+                btn_retract_white.run {
+                    setOnClickListener {
+                        if (id_wuziqi.retractWhiteRenji()) {
+                            var isSuccess = PointsManager.getInstance(this@CheckerActivity).spendPoints(integralConsume);
+                        }
+                    }
+                    text = "悔白棋(${integralConsume.toInt()}积分)"
                 }
             }
-            text = "悔黑棋(${integralConsume.toInt()}积分)"
+            MODEL_TYPE_BLUE->{
+
+            }
         }
     }
 
@@ -77,17 +141,17 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
         id_wuziqi.setOnGameStatusChangeListener(object : OnGameStatusChangeListener() {
             override fun onGameOver(gameWinResult: Int) {
                 when (gameWinResult) {
-                    WZQPanel.WHITE_WIN ->{
+                    WHITE_WIN ->{
                         ++whiteWin
                         tv_white.text = "白子胜:$whiteWin"
                         alertBuilder?.setMessage("白棋胜利!")
                     }
-                    WZQPanel.BLACK_WIN -> {
+                    BLACK_WIN -> {
                         ++blackWin
                         tv_black.text = "黑子胜:$blackWin"
                         alertBuilder?.setMessage("黑棋胜利!")
                     }
-                    WZQPanel.NO_WIN ->{
+                    NO_WIN ->{
                         ++draw
                         tv_checker_draw.text = "和棋：$draw"
                         alertBuilder?.setMessage("和棋!")
@@ -127,8 +191,8 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
                 jishitime[2] = 0
             }
             tv_run_time.post {
-                SimpleDateFormat("yyyy-MM-dd HH:mm:ss").let { tv_current_time.text = "当前时间：${it.format(Date())}" }
-                tv_run_time.text = "比赛用时：" + (String.format("%02d:%02d:%02d", jishitime[2], jishitime[1], jishitime[0]))
+//                SimpleDateFormat("yyyy-MM-dd HH:mm:ss").let { tv_current_time.text = "当前时间：${it.format(Date())}" }
+                tv_run_time.text = "用时：" + (String.format("%02d:%02d:%02d", jishitime[2], jishitime[1], jishitime[0]))
             }
         }, 1000, 1000)
     }
@@ -175,6 +239,8 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
             alertBuilder?.setCancelable(false)
             alertBuilder?.setTitle("正在进行比赛，确认退出？")
             alertBuilder.show()
+        }else{
+            super.onBackPressed()
         }
     }
 

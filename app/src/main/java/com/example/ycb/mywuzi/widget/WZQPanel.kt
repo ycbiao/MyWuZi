@@ -8,10 +8,21 @@ import android.os.Parcelable
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import android.widget.Button
 import com.example.ycb.mywuzi.imp.OnGameStatusChangeListener
 import com.example.ycb.mywuzi.R
+import com.example.ycb.mywuzi.ai.AI
+import com.example.ycb.mywuzi.ai.AICallBack
+import com.example.ycb.mywuzi.util.Const
+import com.example.ycb.mywuzi.util.Const.Companion.BLACK_CHESS
+import com.example.ycb.mywuzi.util.Const.Companion.BLACK_WIN
+import com.example.ycb.mywuzi.util.Const.Companion.NO_WIN
+import com.example.ycb.mywuzi.util.Const.Companion.WHITE_CHESS
+import com.example.ycb.mywuzi.util.Const.Companion.WHITE_WIN
 import com.example.ycb.mywuzi.base.BaseActivity
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENJI
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENREN
+import com.example.ycb.mywuzi.util.Const.Companion.NO_CHESS
+import kotlinx.android.synthetic.main.checker_acticity.*
 import java.util.ArrayList
 
 /**
@@ -43,17 +54,20 @@ class WZQPanel : View{
 
     private val INIT_WIN = -1            //游戏开始时的状态
 
-    companion object {
-        val WHITE_WIN = 0      //白棋赢
-        val BLACK_WIN = 1      //黑棋赢
-        val NO_WIN = 2         //和棋
-    }
+    private lateinit var mChessArray : Array<IntArray>
 
     private var mGameWinResult = INIT_WIN      //初始化游戏结果
 
     private var listener: OnGameStatusChangeListener? = null//游戏状态监听器
 
     private var MAX_COUNT_IN_LINE: Int = 0    //多少颗棋子相邻时赢棋
+
+    private var model_type = 0;//模式
+
+    private lateinit var ai:AI
+
+    var bIsAiRun = false//是否轮到ai
+
     constructor(context: Context?) : this(context,null)
     constructor(context: Context?, attrs: AttributeSet?) : this(context, attrs,0)
     constructor(context: Context?, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr){
@@ -98,9 +112,86 @@ class WZQPanel : View{
         if (mBlackPiece == null) {
             mBlackPiece = BitmapFactory.decodeResource(resources, R.mipmap.stone_b1)
         }
+        mChessArray = Array(MAX_LINE){IntArray(MAX_LINE){it -> 0}}
+        ai = AI(getChessArray(), AICallBack { x: Int, y: Int ->
+            post{
+                //                                    setAiChessArray()
+                mBlackPieceArray.add(Point(x,y))
+                LogUtil.LogMsg(context.javaClass,"$x,$y")
+                bIsAiRun = false
+                invalidate()
+//                                    mIsWhite = !mIsWhite
+            }
+        })
     }
 
-    fun retractWhite() : Boolean{
+    //获取棋盘状态传入ai
+    fun getChessArray(): Array<IntArray>{
+        for (i in 0..MAX_LINE -1){
+            for (j in 0..MAX_LINE - 1){
+                mChessArray[i][j] == NO_CHESS
+            }
+        }
+        for (point in  mWhitePieceArray){
+            mChessArray[point.x][point.y] = Const.WHITE_CHESS
+        }
+
+        for (point in  mBlackPieceArray){
+            mChessArray[point.x][point.y] = Const.BLACK_CHESS
+        }
+
+        return mChessArray
+    }
+
+//    //ai下子后更新状态
+//    fun setAiChessArray(){
+//        for (i in 0..MAX_LINE -1){
+//            for (j in 0..MAX_LINE - 1){
+//                if(mChessArray[i][j] == WHITE_CHESS){
+//                    var point = Point(i,j)
+//                    if(!mWhitePieceArray.contains(point))
+//                        mWhitePieceArray.add(point)
+//                }
+//                if(mChessArray[i][j] == BLACK_CHESS){
+//                    var point = Point(i,j)
+//                    if(!mBlackPieceArray.contains(point))
+//                        mBlackPieceArray.add(point)
+//                }
+//            }
+//        }
+//        invalidate()
+//        mIsWhite = !mIsWhite
+//    }
+//
+    /**
+     * 模式选择
+     */
+    fun setModel(type:Int){
+        model_type = type
+    }
+
+    //人机模式下悔棋
+    fun retractWhiteRenji():Boolean{
+        if(bIsAiRun){
+            (context as BaseActivity).showToast("请等待电脑落子结束再悔棋")
+            return false
+        }
+        if(mWhitePieceArray.size == 0){
+            (context as BaseActivity).showToast("棋盘上没有白棋")
+            return false
+        }
+
+        if(mWhitePieceArray.size != 0 && mBlackPieceArray.size != 0){
+            mBlackPieceArray.remove(mBlackPieceArray.get(mBlackPieceArray.size -1))
+            mWhitePieceArray.remove(mWhitePieceArray.get(mWhitePieceArray.size -1))
+            invalidate()
+            return true
+        }
+        return false
+    }
+
+    //人人模式下悔棋
+    fun retractWhiteRenRen() : Boolean{
         if(mWhitePieceArray.size == 0){
             (context as BaseActivity).showToast("棋盘上没有白棋")
             return false
@@ -115,7 +206,8 @@ class WZQPanel : View{
         return false
     }
 
-    fun retractBlack() : Boolean{
+    //人人模式下悔棋
+    fun retractBlackRenRen() : Boolean{
         if(mBlackPieceArray.size == 0){
             (context as BaseActivity).showToast("棋盘上没有黑棋")
             return false
@@ -153,7 +245,7 @@ class WZQPanel : View{
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         mPanelWidth = w
-        mLineHeight = mPanelWidth * 1.0f / MAX_LINE
+        mLineHeight = mPanelWidth * 1.0f / (MAX_LINE + 1)
 
         val pieceWidth = (mLineHeight * RATIO_PIECE_OF_LINE_HEIGHT).toInt()
         mWhitePiece = Bitmap.createScaledBitmap(mWhitePiece, pieceWidth, pieceWidth, false)
@@ -169,6 +261,13 @@ class WZQPanel : View{
 
     //重新开始游戏
     fun restartGame() {
+
+        for (i in 0..MAX_LINE -1){
+            for (j in 0..MAX_LINE - 1){
+                mChessArray[i][j] = NO_CHESS
+            }
+        }
+
         mWhitePieceArray!!.clear()
         mBlackPieceArray!!.clear()
         mIsGameOver = false
@@ -327,7 +426,7 @@ class WZQPanel : View{
         }
         val maxPieces = MAX_LINE * MAX_LINE
         //如果白棋和黑棋的总数等于棋盘格子数,说明和棋
-        return if (mWhitePieceArray!!.size + mBlackPieceArray!!.size == maxPieces) {
+        return if (mWhitePieceArray.size + mBlackPieceArray.size == maxPieces) {
             true
         } else false
     }
@@ -336,25 +435,25 @@ class WZQPanel : View{
     private fun drawPiece(canvas: Canvas) {
         run {
             var i = 0
-            val n = mWhitePieceArray!!.size
-            while (i < n!!) {
-                val whitePoint = mWhitePieceArray!!.get(i)
+            val n = mWhitePieceArray.size
+            while (i < n) {
+                val whitePoint = mWhitePieceArray.get(i)
                 canvas.drawBitmap(
                     mWhitePiece,
-                    (whitePoint!!.x + (1 - RATIO_PIECE_OF_LINE_HEIGHT) / 2) * mLineHeight,
-                    (whitePoint!!.y + (1 - RATIO_PIECE_OF_LINE_HEIGHT) / 2) * mLineHeight, null
+                    (whitePoint.x + (1 - RATIO_PIECE_OF_LINE_HEIGHT/ 2)) * mLineHeight,
+                    (whitePoint.y + (1 - RATIO_PIECE_OF_LINE_HEIGHT/ 2) ) * mLineHeight, null
                 )
                 i++
             }
         }
         var i = 0
-        val n = mBlackPieceArray!!.size
-        while (i < n!!) {
-            val blackPoint = mBlackPieceArray!!.get(i)
+        val n = mBlackPieceArray.size
+        while (i < n) {
+            val blackPoint = mBlackPieceArray.get(i)
             canvas.drawBitmap(
                 mBlackPiece,
-                (blackPoint!!.x!! + (1 - RATIO_PIECE_OF_LINE_HEIGHT) / 2) * mLineHeight,
-                (blackPoint.y!! + (1 - RATIO_PIECE_OF_LINE_HEIGHT) / 2) * mLineHeight, null
+                (blackPoint.x + (1 - RATIO_PIECE_OF_LINE_HEIGHT / 2)) * mLineHeight,
+                (blackPoint.y + (1 - RATIO_PIECE_OF_LINE_HEIGHT / 2)) * mLineHeight, null
             )
             i++
         }
@@ -366,10 +465,10 @@ class WZQPanel : View{
         val lineHeight = mLineHeight
 
         for (i in 0 until MAX_LINE) {
-            val startX = (lineHeight / 2).toInt()
-            val endX = (w - lineHeight / 2).toInt()
+            val startX = lineHeight.toInt()
+            val endX = (w - lineHeight).toInt()
 
-            val y = ((0.5 + i) * lineHeight).toInt()
+            val y = ((1 + i) * lineHeight).toInt()
             canvas.drawLine(startX.toFloat(), y.toFloat(), endX.toFloat(), y.toFloat(), mPaint)//画横线
             canvas.drawLine(y.toFloat(), startX.toFloat(), y.toFloat(), endX.toFloat(), mPaint)//画竖线
         }
@@ -383,18 +482,33 @@ class WZQPanel : View{
         if (event.action == MotionEvent.ACTION_UP) {
             val x = event.x.toInt()
             val y = event.y.toInt()
+
             val p = getValidPoint(x, y)
-            if (mWhitePieceArray!!.contains(p) || mBlackPieceArray!!.contains(p)) {
+            if (mWhitePieceArray.contains(p) || mBlackPieceArray.contains(p) || p.x == MAX_LINE || p.y == MAX_LINE) {
                 return false
             }
 
-            if (mIsWhite) {
-                mWhitePieceArray!!.add(p)
-            } else {
-                mBlackPieceArray!!.add(p)
+            when(model_type){
+                MODEL_TYPE_RENREN -> {
+                    if (mIsWhite) {
+                        mWhitePieceArray.add(p)
+                    } else {
+                        mBlackPieceArray.add(p)
+                    }
+                    mIsWhite = !mIsWhite
+                    invalidate()
+                }
+                MODEL_TYPE_RENJI -> {
+                    if (mIsWhite && !bIsAiRun) {
+                        mWhitePieceArray.add(p)
+                        invalidate()
+                        postDelayed({
+                            bIsAiRun = true
+                            ai.aiBout()
+                        },1000)
+                    }
+                }
             }
-            invalidate()
-            mIsWhite = !mIsWhite
             return true
         }
         return true
@@ -402,7 +516,9 @@ class WZQPanel : View{
 
     //根据触摸点获取最近的格子位置
     private fun getValidPoint(x: Int, y: Int): Point {
-        return Point((x / mLineHeight).toInt(), (y / mLineHeight).toInt())
+        var xP = ((x - (RATIO_PIECE_OF_LINE_HEIGHT/2*mLineHeight)) / mLineHeight).toInt()
+        var yP = ((y - (RATIO_PIECE_OF_LINE_HEIGHT/2*mLineHeight)) / mLineHeight).toInt()
+        return Point(xP, yP)
     }
 
 

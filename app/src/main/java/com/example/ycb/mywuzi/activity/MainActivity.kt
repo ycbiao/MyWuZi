@@ -7,6 +7,9 @@ import android.view.WindowManager
 import cdc.sed.yff.os.PointsManager
 import com.example.ycb.mywuzi.R
 import com.example.ycb.mywuzi.base.BaseActivity
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENJI
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENREN
 import com.example.ycb.mywuzi.util.UpdateHelper
 import kotlinx.android.synthetic.main.checker_acticity.*
 import kotlinx.android.synthetic.main.main_activity.*
@@ -30,10 +33,11 @@ class MainActivity : BaseActivity(){
     private fun init() {
         setContentView(R.layout.main_activity)
         btn_pp.setOnClickListener {  //人人
-            startActivity(Intent(this@MainActivity,CheckerActivity::class.java))
+            startActivity(Intent(this@MainActivity,CheckerActivity::class.java).putExtra(MODEL_TYPE,MODEL_TYPE_RENREN))
              }
         btn_pm.setOnClickListener {//人机
-             }
+            startActivity(Intent(this@MainActivity,CheckerActivity::class.java).putExtra(MODEL_TYPE,MODEL_TYPE_RENJI))
+        }
         btn_blue.setOnClickListener { //蓝牙
              }
         btn_rank.setOnClickListener {
