@@ -24,6 +24,7 @@ import android.util.Log;
  * <ul>
  * <li>android.permission.READ_PHONE_STATE</li>
  * <li>android.permission.WRITE_EXTERNAL_STORAGE</li>
+ *
  * </ul>
  * </li>
  * <li>可选申请的权限
@@ -48,6 +49,8 @@ public class PermissionHelper {
 	private final static int WRITE_EXTERNAL_STORAGE_CODE = 102;
 	
 	private final static int REQUEST_OPEN_APPLICATION_SETTINGS_CODE = 12345;
+
+	private final static int REQUEST_ACCESS_COARSE_LOCATION = 103;
 	
 	/**
 	 * 有米 Android SDK 所需要向用户申请的权限列表
@@ -59,7 +62,8 @@ public class PermissionHelper {
 					Manifest.permission.WRITE_EXTERNAL_STORAGE,
 					"我们需要您允许我们读写你的存储卡，以方便我们临时保存一些数据",
 					WRITE_EXTERNAL_STORAGE_CODE
-			)
+			),
+			new PermissionModel("获取位置",Manifest.permission.ACCESS_COARSE_LOCATION,"我们需要你的手机位置信息方便蓝牙连接",REQUEST_ACCESS_COARSE_LOCATION)
 	};
 	
 	private Activity mActivity;
@@ -104,6 +108,7 @@ public class PermissionHelper {
 		switch (requestCode) {
 		case READ_PHONE_STATE_CODE:
 		case WRITE_EXTERNAL_STORAGE_CODE:
+			case REQUEST_ACCESS_COARSE_LOCATION:
 			// 如果用户不允许，我们视情况发起二次请求或者引导用户到应用页面手动打开
 			if (PackageManager.PERMISSION_GRANTED != grantResults[0]) {
 				

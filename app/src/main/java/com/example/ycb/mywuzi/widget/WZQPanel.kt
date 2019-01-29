@@ -66,8 +66,6 @@ class WZQPanel : View{
 
     private lateinit var ai:AI
 
-    var bIsAiRun = false//是否轮到ai
-
     constructor(context: Context?) : this(context,null)
     constructor(context: Context?, attrs: AttributeSet?) : this(context, attrs,0)
     constructor(context: Context?, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr){
@@ -113,56 +111,44 @@ class WZQPanel : View{
             mBlackPiece = BitmapFactory.decodeResource(resources, R.mipmap.stone_b1)
         }
         mChessArray = Array(MAX_LINE){IntArray(MAX_LINE){it -> 0}}
-        ai = AI(getChessArray(), AICallBack { x: Int, y: Int ->
+        synchronizedChessArray()
+        ai = AI(mChessArray, AICallBack { x: Int, y: Int ->
             post{
                 //                                    setAiChessArray()
                 mBlackPieceArray.add(Point(x,y))
                 LogUtil.LogMsg(context.javaClass,"$x,$y")
-                bIsAiRun = false
+                mIsWhite = true
                 invalidate()
-//                                    mIsWhite = !mIsWhite
             }
         })
     }
 
-    //获取棋盘状态传入ai
-    fun getChessArray(): Array<IntArray>{
+    fun getIsWhite():Boolean{
+        return mIsWhite
+    }
+
+    fun getAi(): AI{
+        return ai
+    }
+
+    //同步棋盘状态到mChessArray传入ai
+    @Synchronized    fun synchronizedChessArray(): Array<IntArray>{
         for (i in 0..MAX_LINE -1){
             for (j in 0..MAX_LINE - 1){
-                mChessArray[i][j] == NO_CHESS
+                mChessArray[i][j] = NO_CHESS
             }
         }
         for (point in  mWhitePieceArray){
-            mChessArray[point.x][point.y] = Const.WHITE_CHESS
+            mChessArray[point.x][point.y] = WHITE_CHESS
         }
 
         for (point in  mBlackPieceArray){
-            mChessArray[point.x][point.y] = Const.BLACK_CHESS
+            mChessArray[point.x][point.y] = BLACK_CHESS
         }
 
         return mChessArray
     }
 
-//    //ai下子后更新状态
-//    fun setAiChessArray(){
-//        for (i in 0..MAX_LINE -1){
-//            for (j in 0..MAX_LINE - 1){
-//                if(mChessArray[i][j] == WHITE_CHESS){
-//                    var point = Point(i,j)
-//                    if(!mWhitePieceArray.contains(point))
-//                        mWhitePieceArray.add(point)
-//                }
-//                if(mChessArray[i][j] == BLACK_CHESS){
-//                    var point = Point(i,j)
-//                    if(!mBlackPieceArray.contains(point))
-//                        mBlackPieceArray.add(point)
-//                }
-//            }
-//        }
-//        invalidate()
-//        mIsWhite = !mIsWhite
-//    }
-//
     /**
      * 模式选择
      */
@@ -172,7 +158,7 @@ class WZQPanel : View{
 
     //人机模式下悔棋
     fun retractWhiteRenji():Boolean{
-        if(bIsAiRun){
+        if(!mIsWhite){
             (context as BaseActivity).showToast("请等待电脑落子结束再悔棋")
             return false
         }
@@ -184,6 +170,7 @@ class WZQPanel : View{
         if(mWhitePieceArray.size != 0 && mBlackPieceArray.size != 0){
             mBlackPieceArray.remove(mBlackPieceArray.get(mBlackPieceArray.size -1))
             mWhitePieceArray.remove(mWhitePieceArray.get(mWhitePieceArray.size -1))
+            synchronizedChessArray()
             invalidate()
             return true
         }
@@ -499,11 +486,15 @@ class WZQPanel : View{
                     invalidate()
                 }
                 MODEL_TYPE_RENJI -> {
-                    if (mIsWhite && !bIsAiRun) {
+                    if (mIsWhite) {
                         mWhitePieceArray.add(p)
                         invalidate()
+                        mIsWhite = false
+                        if(mIsGameOver){
+                            return true
+                        }
                         postDelayed({
-                            bIsAiRun = true
+                            synchronizedChessArray()
                             ai.aiBout()
                         },1000)
                     }

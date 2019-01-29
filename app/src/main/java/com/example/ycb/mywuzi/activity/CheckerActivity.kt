@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.DialogInterface
 import android.os.Bundle
 import android.support.v7.app.AlertDialog
+import android.text.Html
 import android.view.View
 import android.widget.SimpleAdapter
 import cdc.sed.yff.listener.Interface_ActivityListener
@@ -19,6 +20,7 @@ import com.example.ycb.mywuzi.util.Const.Companion.NO_WIN
 import com.example.ycb.mywuzi.util.Const.Companion.WHITE_WIN
 import com.example.ycb.mywuzi.base.BaseActivity
 import com.example.ycb.mywuzi.imp.OnGameStatusChangeListener
+import com.example.ycb.mywuzi.util.Const
 import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_BLUE
 import kotlinx.android.synthetic.main.checker_acticity.*
 import java.util.*
@@ -114,6 +116,17 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
                 alertBuilder.setAdapter(simpleAdapter,object: DialogInterface.OnClickListener{
                     override fun onClick(dialog: DialogInterface?, which: Int) {
                         tv_checker_degree.text = "比赛等级:${keys[which].get("Name").toString()}"
+                        when(which){
+                            0 ->{
+                               id_wuziqi.getAi()?.setLevel(Const.LEVEL_LOW)
+                            }
+                            1 ->{
+                                id_wuziqi.getAi()?.setLevel(Const.LEVEL_MIDIUM)
+                            }
+                            2 ->{
+                                id_wuziqi.getAi()?.setLevel(Const.LEVEL_HIGH)
+                            }
+                        }
                         initTime()
                     }
                 })
@@ -193,6 +206,11 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
             tv_run_time.post {
 //                SimpleDateFormat("yyyy-MM-dd HH:mm:ss").let { tv_current_time.text = "当前时间：${it.format(Date())}" }
                 tv_run_time.text = "用时：" + (String.format("%02d:%02d:%02d", jishitime[2], jishitime[1], jishitime[0]))
+                if(id_wuziqi.getIsWhite()){
+                    tv_checker_turning.text = Html.fromHtml("<font color = \"#ffffff\">" + "白方落子</font>")
+                }else{
+                    tv_checker_turning.text = Html.fromHtml("<font color = \"#333333\">" + "黑方落子</font>")
+                }
             }
         }, 1000, 1000)
     }

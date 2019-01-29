@@ -1,10 +1,16 @@
 package com.example.ycb.mywuzi.ai;
 
+import android.support.annotation.IntDef;
 import com.example.ycb.mywuzi.util.Const;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
+import static com.example.ycb.mywuzi.util.Const.Companion;
 
 /**
  * Created by ZhangHao on 2017/7/25.
@@ -15,13 +21,16 @@ public class AI implements Runnable {
     //棋盘信息
     private int[][] chessArray;
     //电脑执子（默认黑子）
-    private int aiChess = Const.Companion.getBLACK_CHESS();
+    private int aiChess = Companion.getBLACK_CHESS();
     //所有无子位置的信息集合
     private List<Point> pointList;
     //ai落子结束回调
     private AICallBack callBack;
     //棋盘宽高（panelLength）
     private int panelLength;
+    //游戏等级
+    private int mLevelGame = 0;
+
     /**
      * 评分表（落子优先级评分）
      * FIVE 至少能五子相连
@@ -71,10 +80,10 @@ public class AI implements Runnable {
     //获取当前点，玩家优先级评分
     private int checkUser(int x, int y) {
         int userChess;
-        if (aiChess == Const.Companion.getWHITE_CHESS()) {
-            userChess = Const.Companion.getBLACK_CHESS();
+        if (aiChess == Companion.getWHITE_CHESS()) {
+            userChess = Companion.getBLACK_CHESS();
         } else {
-            userChess = Const.Companion.getWHITE_CHESS();
+            userChess = Companion.getWHITE_CHESS();
         }
         return getHorizontalPriority(x, y, userChess)
                 + getVerticalPriority(x, y, userChess)
@@ -82,15 +91,20 @@ public class AI implements Runnable {
                 + getRightSlashPriority(x, y, userChess);
     }
 
+    //设置等级
+    public void setLevel(int levelGame){
+        mLevelGame = levelGame;
+    }
+
     //通过线程选择最佳落点
     @Override
-    public void run() {
+    public synchronized void run() {
         //清空pointList
         pointList.clear();
         int blankCount = 0;
         for (int i = 0; i < panelLength; i++)
             for (int j = 0; j < panelLength; j++) {
-                if (chessArray[i][j] == Const.Companion.getNO_CHESS()) {
+                if (chessArray[i][j] == Companion.getNO_CHESS()) {
                     Point p = new Point(i, j);
                     checkPriority(p);
                     pointList.add(p);
@@ -98,12 +112,29 @@ public class AI implements Runnable {
                 }
             }
         //遍历pointList，找到优先级最高的Point
-        Point max = pointList.get(0);
-        for (Point point : pointList) {
-            if (max.getPriority() < point.getPriority()) {
-                max = point;
-            }
+        bubbleSort(pointList);
+        Point max;
+        switch (mLevelGame){
+            case Const.LEVEL_LOW:
+                max = pointList.get(2);
+                break;
+            case Const.LEVEL_MIDIUM:
+                max = pointList.get(1);
+                break;
+            case Const.LEVEL_HIGH:
+                max = pointList.get(0);
+                break;
+                default:
+                    max = pointList.get(0);
         }
+
+
+//        for (Point point : pointList) {
+//            if (max.getPriority() < point.getPriority()) {
+//                max = point;
+//            }
+//        }
+
         //AI先手或者用户先手第一次落子时
         if (blankCount >= panelLength * panelLength - 1) {
             max = getStartPoint();
@@ -119,7 +150,29 @@ public class AI implements Runnable {
         callBack.aiAtTheBell(max.getX(),max.getY());
     }
 
-    public void setAiChess(int aiChess) {
+    //冒泡排序
+    private void bubbleSort(List<Point> list) {
+        int len = list.size();
+        for (int i = 0; i < len - 1; i++) {
+            for (int j = 0; j < len - 1 - i; j++) {
+                Point point1 =  list.get(j);
+                Point point2 =  list.get(j+1);
+                if (point1.getPriority() < point2.getPriority()) {        // 相邻元素两两对比
+                    Point point3 = point2;
+                    Point point4 = point1;
+//                    point2 = point1;
+////                    point1 = point3;
+                    list.remove(j+1);
+                    list.add(j+1,point4);
+                    list.remove(j);
+                    list.add(j,point3);
+                }
+            }
+        }
+    }
+
+
+        public void setAiChess(int aiChess) {
         this.aiChess = aiChess;
     }
 
@@ -134,7 +187,7 @@ public class AI implements Runnable {
         //确保周围不存在其他棋子
         for (int i = x - 1; i <= x + 1; i++)
             for (int j = y - 1; j <= y + 1; j++) {
-                if (chessArray[i][j] != Const.Companion.getNO_CHESS()) {
+                if (chessArray[i][j] != Companion.getNO_CHESS()) {
                     isUse = false;
                 }
             }
@@ -171,7 +224,7 @@ public class AI implements Runnable {
                 //如果不是指定棋子
                 if (chessArray[x][i] != chess) {
                     //不是自己的棋子，则左边被堵住或者是空位
-                    isStartStem = chessArray[x][i] != Const.Companion.getNO_CHESS();
+                    isStartStem = chessArray[x][i] != Companion.getNO_CHESS();
                     break;
                 } else {
                     connectCount++;
@@ -193,7 +246,7 @@ public class AI implements Runnable {
                 //如果不是指定棋子
                 if (chessArray[x][i] != chess) {
                     //不是自己的棋子，则左边被堵住或者是空位
-                    isEndStem = chessArray[x][i] != Const.Companion.getNO_CHESS();
+                    isEndStem = chessArray[x][i] != Companion.getNO_CHESS();
                     break;
                 } else {
                     connectCount++;
@@ -234,7 +287,7 @@ public class AI implements Runnable {
                 //如果不是指定棋子
                 if (chessArray[i][y] != chess) {
                     //不是自己的棋子，则左边被堵住或者是空位
-                    isStartStem = chessArray[i][y] != Const.Companion.getNO_CHESS();
+                    isStartStem = chessArray[i][y] != Companion.getNO_CHESS();
                     break;
                 } else {
                     connectCount++;
@@ -256,7 +309,7 @@ public class AI implements Runnable {
                 //如果不是指定棋子
                 if (chessArray[i][y] != chess) {
                     //不是自己的棋子，则左边被堵住或者是空位
-                    isEndStem = chessArray[i][y] != Const.Companion.getNO_CHESS();
+                    isEndStem = chessArray[i][y] != Companion.getNO_CHESS();
                     break;
                 } else {
                     connectCount++;
@@ -297,7 +350,7 @@ public class AI implements Runnable {
                 //如果不是指定棋子
                 if (chessArray[i][j] != chess) {
                     //不是自己的棋子，则左边被堵住或者是空位
-                    isStartStem = chessArray[i][j] != Const.Companion.getNO_CHESS();
+                    isStartStem = chessArray[i][j] != Companion.getNO_CHESS();
                     break;
                 } else {
                     connectCount++;
@@ -319,7 +372,7 @@ public class AI implements Runnable {
                 //如果不是指定棋子
                 if (chessArray[i][j] != chess) {
                     //不是自己的棋子，则左边被堵住或者是空位
-                    isEndStem = chessArray[i][j] != Const.Companion.getNO_CHESS();
+                    isEndStem = chessArray[i][j] != Companion.getNO_CHESS();
                     break;
                 } else {
                     connectCount++;
@@ -360,7 +413,7 @@ public class AI implements Runnable {
                 //如果不是指定棋子
                 if (chessArray[i][j] != chess) {
                     //不是自己的棋子，则左边被堵住或者是空位
-                    isStartStem = chessArray[i][j] != Const.Companion.getNO_CHESS();
+                    isStartStem = chessArray[i][j] != Companion.getNO_CHESS();
                     break;
                 } else {
                     connectCount++;
@@ -382,7 +435,7 @@ public class AI implements Runnable {
                 //如果不是指定棋子
                 if (chessArray[i][j] != chess) {
                     //不是自己的棋子，则被堵住或者是空位
-                    isEndStem = chessArray[i][j] != Const.Companion.getNO_CHESS();
+                    isEndStem = chessArray[i][j] != Companion.getNO_CHESS();
                     break;
                 } else {
                     connectCount++;

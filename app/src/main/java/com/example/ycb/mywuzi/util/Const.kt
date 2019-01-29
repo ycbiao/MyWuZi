@@ -28,5 +28,13 @@ class Const{
         val MODEL_TYPE_RENJI = 2
         //蓝牙模式
         val MODEL_TYPE_BLUE = 3
+        //游戏等级低
+        const val LEVEL_LOW = 1;
+        //游戏等级中
+        const val LEVEL_MIDIUM = 2;
+        //游戏等级高
+        const val LEVEL_HIGH = 3;
+
+        const val REQUEST_BLUETOOTH = 0X1111
     }
 }

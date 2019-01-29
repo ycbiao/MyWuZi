@@ -1,6 +1,7 @@
 package com.example.ycb.mywuzi.activity
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -11,7 +12,6 @@ import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE
 import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENJI
 import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENREN
 import com.example.ycb.mywuzi.util.UpdateHelper
-import kotlinx.android.synthetic.main.checker_acticity.*
 import kotlinx.android.synthetic.main.main_activity.*
 
 
@@ -39,6 +39,7 @@ class MainActivity : BaseActivity(){
             startActivity(Intent(this@MainActivity,CheckerActivity::class.java).putExtra(MODEL_TYPE,MODEL_TYPE_RENJI))
         }
         btn_blue.setOnClickListener { //蓝牙
+            startActivity(Intent(this@MainActivity,BlueToothFindActivity::class.java))
              }
         btn_rank.setOnClickListener {
             //排行版
@@ -50,7 +51,6 @@ class MainActivity : BaseActivity(){
         var updateHelper =  UpdateHelper(this)
         updateHelper.execute()
     }
-
 
     /**
      * A native method that is implemented by the 'native-lib' native library,
