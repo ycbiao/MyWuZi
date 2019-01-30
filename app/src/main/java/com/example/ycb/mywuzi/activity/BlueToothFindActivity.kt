@@ -36,14 +36,14 @@ class BlueToothFindActivity : BaseActivity()  {
     //蓝牙组件
     private  lateinit var bluetoothAdapter: BluetoothAdapter
 
-    private var mScanning = true
+    private var bluetoothReceiver = BluetoothReceiver()
 
     //作为客户端的Socket
     private var clientSocket: BluetoothSocket? = null
     //蓝牙ServerSocket
     internal var bluetoothServerSocket: BluetoothServerSocket? = null
     //客户端连接后服务端的Socket
-    internal var serverSocket: BluetoothSocket? = null
+    internal var serverSocketAfter: BluetoothSocket? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,6 +68,11 @@ class BlueToothFindActivity : BaseActivity()  {
         initServer()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(bluetoothReceiver)
+    }
+
     private fun initServer() {
         //开启子线程等待连接
         Thread(Runnable {
@@ -75,25 +80,20 @@ class BlueToothFindActivity : BaseActivity()  {
                 //开启服务端
                 //等待客户端接入
                 while (true) {
-                    bluetoothServerSocket =
-                            bluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord(bluetoothAdapter.getName(), Config.UUID)
-                    serverSocket = bluetoothServerSocket?.accept()
-                    if (serverSocket?.isConnected()!!) {
-
+                    bluetoothServerSocket = bluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord(bluetoothAdapter.getName(), Config.UUID)
+                    serverSocketAfter = bluetoothServerSocket?.accept()
+                    if (serverSocketAfter?.isConnected()!!) {
 
                         runOnUiThread {
-                            Toast.makeText(this@BlueToothFindActivity, "接收挑战请求，建立连接成功！", Toast.LENGTH_SHORT)
-                            //执行socket方法
+                            showToast("接收挑战请求，建立连接成功！")
 
-//                            val blueToothGameAty = BlueToothGameAty()
-//                            blueToothGameAty.blueToothGameAty.manageConnectedSocket(fuwuSocket, false)
-                            //       blueToothGameAty.blueToothGameAty.chushihua(blueToothGameAty);
+                            CheckerActivity.manageConnectedSocket(serverSocketAfter!!, false)
                         }
 
+                        val i = Intent(this@BlueToothFindActivity, CheckerActivity::class.java)
+                        i.putExtra(Const.MODEL_TYPE,Const.MODEL_TYPE_BLUE)
+                        startActivity(i)
 
-                        //跳转到蓝牙游戏activity
-//                        val i = Intent(this@BlueToothFindActivity, BlueToothGameAty::class.java)
-//                        startActivity(i)
                         //初始化线程来传输数据
                         // manageConnectedSocket(fuwuSocket);
                         //得到连接之后关闭ServerSocket
@@ -111,20 +111,19 @@ class BlueToothFindActivity : BaseActivity()  {
 
 
     /**
-     * 打开蓝牙设备，设置可见性。
+     * 打开蓝牙设备。
      */
     private fun openBlueTooth() {
-        //创建一个Intent对象,并且将其action的值设置为BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE也就是蓝牙设备设置为可见状态
         val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
-        //将一个键值对存放到Intent对象当中,主要用于指定可见状态的持续时间,大于300秒,就认为是300秒
-        intent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
-        //执行请求
+        //指定可见状态的持续时间,大于300秒,就认为是300秒
+        intent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 500)
         startActivityForResult(intent,Const.REQUEST_BLUETOOTH)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode == RESULT_OK && requestCode == REQUEST_BLUETOOTH) {
+        //resultCode返回设置的BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION,这里是500,不允许则返回0
+        if (resultCode == 500 && requestCode == REQUEST_BLUETOOTH) {
             scanLeDevice(true);
         }
     }
@@ -133,7 +132,7 @@ class BlueToothFindActivity : BaseActivity()  {
         if (enable) {
 //            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP){
 //                var bluetoothLeScanner:BluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
-//                bluetoothLeScanner .startScan(object : ScanCallback() {
+//                bluetoothLeScanner .startScan(object : ScanCallback() {//扫描只能手环之类
 //                    override fun onScanFailed(errorCode: Int) {
 //                        super.onScanFailed(errorCode)
 //                        LogUtil.LogMsg(this@BlueToothFindActivity.javaClass,"onScanFailed =" + errorCode.toString())
@@ -158,20 +157,14 @@ class BlueToothFindActivity : BaseActivity()  {
 //                })
 //            }
 
-            //设置广播获得未配对可检测的蓝牙设备
-            //创建一个IntentFilter对象,将其action指定为BluetoothDevice.ACTION_FOUND
-            //IntentFilter它是一个过滤器,只有符合过滤器的Intent才会被我们的BluetoothReceiver所接收
             val intentFilter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-            //创建一个BluetoothReceiver对象
-            var bluetoothReceiver = BluetoothReceiver()
-            //设置广播的优先级为最大
             intentFilter.priority = Integer.MAX_VALUE
-            //注册广播接收器 注册完后每次发送广播后，BluetoothReceiver就可以接收到这个广播了
+            intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED); //监听搜索完毕
+            intentFilter.addAction(BluetoothDevice.ACTION_FOUND);               //监听是否配对
+            intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);     //监听配对的状态
             registerReceiver(bluetoothReceiver, intentFilter)
             //开始扫描周围的可见的蓝牙设备
             bluetoothAdapter.startDiscovery()
-        } else {
-
         }
     }
 
@@ -182,30 +175,37 @@ class BlueToothFindActivity : BaseActivity()  {
     private inner class BluetoothReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val action = intent.action
-            //如果是正在扫描状态
-            if (BluetoothDevice.ACTION_FOUND == action) {
-                //只要BluetoothReceiver接收到来自于系统的广播,这个广播是什么呢,是我找到了一个远程蓝牙设备
-                //Intent代表刚刚发现远程蓝牙设备适配器的对象,可以从收到的Intent对象取出一些信息
-                val bluetoothDevice = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-                // 如果该设备已经被配对，则跳过
-                //  if (bluetoothDevice.getBondState() != BluetoothDevice.BOND_BONDED) {
-                if (!devices.contains(bluetoothDevice)) {
-                    //设备数组获得新的设备信息并更新adapter
-                    addressDevices.add(
-                        BluetoothDeviceModel(
-                            bluetoothDevice.name,
-                            bluetoothDevice.address,
-                            bluetoothDevice.bondState
+            val bluetoothDevice = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+            when (action) {
+                BluetoothDevice.ACTION_FOUND ->{
+                    if (!devices.contains(bluetoothDevice)) {
+                        //设备数组获得新的设备信息并更新adapter
+                        addressDevices.add(
+                            BluetoothDeviceModel(
+                                bluetoothDevice.name,
+                                bluetoothDevice.address,
+                                bluetoothDevice.bondState
+                            )
                         )
-                    )
-                    //添加新的设备到设备Arraylist
-                    devices.add(bluetoothDevice)
-                    adapter.notifyDataSetChanged()
-                    LogUtil.LogMsg(this@BlueToothFindActivity.javaClass,"BluetoothReceiver =" +bluetoothDevice.address)
+                        //添加新的设备到设备Arraylist
+                        devices.add(bluetoothDevice)
+                        LogUtil.LogMsg(this@BlueToothFindActivity.javaClass,"BluetoothReceiver =" +bluetoothDevice.address)
+                    }
                 }
-
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED->{
+                    if(devices.contains(bluetoothDevice)){
+                        addressDevices.forEach {
+                            if(it.deviceAddress.equals(bluetoothDevice.address)){
+                                it.deviceState = bluetoothDevice.bondState
+                            }
+                        }
+                        LogUtil.LogMsg(this@BlueToothFindActivity.javaClass,"bondState =" +bluetoothDevice.bondState)
+                    }
+                }
             }
+            adapter.notifyDataSetChanged()
         }
+
     }
 
     private fun buildConnect(position: Int, isClient: Boolean) {
@@ -214,15 +214,11 @@ class BlueToothFindActivity : BaseActivity()  {
         var result: Boolean? = false
         try {
             //先进行配对
-            //如果没有配对
-            LogUtil.LogMsg(this@BlueToothFindActivity.javaClass, "开始配对")
             if (device.getBondState() == BluetoothDevice.BOND_NONE) {
-                var createBondMethod: Method? = null
-                createBondMethod = BluetoothDevice::class.java
-                    .getMethod("createBond")
-
                 LogUtil.LogMsg(this@BlueToothFindActivity.javaClass, "开始配对")
-                result = createBondMethod!!.invoke(device) as Boolean
+//                device.setPin(byteArrayOf("0000".toByte()));
+                LogUtil.LogMsg(this@BlueToothFindActivity.javaClass, "配对 = ${device.createBond()}")
+
             } else if (device.getBondState() == BluetoothDevice.BOND_BONDED) {
                 //获得客户端Socket
                 clientSocket = device.createRfcommSocketToServiceRecord(Config.UUID)
@@ -240,16 +236,17 @@ class BlueToothFindActivity : BaseActivity()  {
                                 }
                                 if (clientSocket?.isConnected()!!) {
                                     runOnUiThread {
-                                        Toast.makeText(this@BlueToothFindActivity, "连接成功！！", Toast.LENGTH_SHORT).show()
+                                        showToast("连接成功！！")
                                         //执行socket方法
-                                        val blueToothGameAty = CheckerActivity()
+                                        val checkerActivity = CheckerActivity()
 
-//                                        blueToothGameAty.blueToothGameAty.manageConnectedSocket(clientSocket, true)
+                                        CheckerActivity.manageConnectedSocket(clientSocket!!, true)
                                         //   blueToothGameAty.blueToothGameAty.chushihua(blueToothGameAty);
                                     }
                                     //跳转到蓝牙游戏activity
-//                                    val i = Intent(this@BlueToothFindOthersAty, BlueToothGameAty::class.java)
-//                                    startActivity(i)
+                                    val i = Intent(this@BlueToothFindActivity, CheckerActivity::class.java)
+                                    i.putExtra(Const.MODEL_TYPE,Const.MODEL_TYPE_BLUE)
+                                    startActivity(i)
                                 }
                             } catch (e: IOException) {
                                 runOnUiThread {

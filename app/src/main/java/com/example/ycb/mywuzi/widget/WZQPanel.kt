@@ -19,6 +19,7 @@ import com.example.ycb.mywuzi.util.Const.Companion.NO_WIN
 import com.example.ycb.mywuzi.util.Const.Companion.WHITE_CHESS
 import com.example.ycb.mywuzi.util.Const.Companion.WHITE_WIN
 import com.example.ycb.mywuzi.base.BaseActivity
+import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_BLUE
 import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENJI
 import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_RENREN
 import com.example.ycb.mywuzi.util.Const.Companion.NO_CHESS
@@ -59,6 +60,8 @@ class WZQPanel : View{
     private var mGameWinResult = INIT_WIN      //初始化游戏结果
 
     private var listener: OnGameStatusChangeListener? = null//游戏状态监听器
+
+    private var blueListener: OnBlueChessListener? = null//
 
     private var MAX_COUNT_IN_LINE: Int = 0    //多少颗棋子相邻时赢棋
 
@@ -499,6 +502,14 @@ class WZQPanel : View{
                         },1000)
                     }
                 }
+                MODEL_TYPE_BLUE ->{
+                    if (mIsWhite) {
+                        mWhitePieceArray.add(p)
+                        blueListener?.onChess("0,${p.x},${p.y}")
+                    }
+                    mIsWhite = !mIsWhite
+                    invalidate()
+                }
             }
             return true
         }
@@ -510,6 +521,15 @@ class WZQPanel : View{
         var xP = ((x - (RATIO_PIECE_OF_LINE_HEIGHT/2*mLineHeight)) / mLineHeight).toInt()
         var yP = ((y - (RATIO_PIECE_OF_LINE_HEIGHT/2*mLineHeight)) / mLineHeight).toInt()
         return Point(xP, yP)
+    }
+
+    fun setChess(string: String){
+        var chess = string.split(",")
+        if(chess[0].equals("0")){
+            mBlackPieceArray.add(Point(chess[1].toInt(),chess[2].toInt()))
+            mIsWhite = !mIsWhite
+            invalidate()
+        }
     }
 
 
@@ -546,5 +566,13 @@ class WZQPanel : View{
     //设置游戏状态监听器
     fun setOnGameStatusChangeListener(listener: OnGameStatusChangeListener) {
         this.listener = listener
+    }
+
+    abstract class OnBlueChessListener{
+        abstract fun onChess(s: String) //游戏结束
+    }
+
+    fun setOnBlueChessListener(listener:OnBlueChessListener){
+        this.blueListener = listener
     }
 }

@@ -1,5 +1,6 @@
 package com.example.ycb.mywuzi.activity
 
+import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.DialogInterface
 import android.os.Bundle
@@ -22,10 +23,14 @@ import com.example.ycb.mywuzi.base.BaseActivity
 import com.example.ycb.mywuzi.imp.OnGameStatusChangeListener
 import com.example.ycb.mywuzi.util.Const
 import com.example.ycb.mywuzi.util.Const.Companion.MODEL_TYPE_BLUE
+import com.example.ycb.mywuzi.widget.LogUtil
 import kotlinx.android.synthetic.main.checker_acticity.*
 import java.util.*
 import kotlin.concurrent.timerTask
-
+import x.y.h.i
+import android.system.Os.socket
+import com.example.ycb.mywuzi.widget.WZQPanel
+import kotlin.concurrent.thread
 
 
 /**
@@ -33,6 +38,8 @@ import kotlin.concurrent.timerTask
  * 棋盘
  */
 class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
+
+    val INSTANCES = this
 
     private var model_type = 0;
     private lateinit var alertBuilder: AlertDialog.Builder
@@ -143,7 +150,16 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
                 }
             }
             MODEL_TYPE_BLUE->{
-
+                Thread(object : Runnable{
+                    override fun run() {
+                        inPut()
+                    }
+                }).start()
+                id_wuziqi.setOnBlueChessListener(object: WZQPanel.OnBlueChessListener() {
+                    override fun onChess(s: String) {
+                        outPut(s)
+                    }
+                })
             }
         }
     }
@@ -269,4 +285,48 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
     override fun onPointEarn(p0: Context?, p1: EarnPointsOrderList?) {
 
     }
+
+    companion object {
+        lateinit var mSocket: BluetoothSocket
+        fun manageConnectedSocket(socket: BluetoothSocket,isClient: Boolean){
+            mSocket = socket
+        }
+    }
+
+
+    fun inPut(){
+        while (true){
+            if(mSocket.isConnected){
+                val inputStream = mSocket.inputStream
+                val bytes = ByteArray(1024)
+                var n: Int
+                n = inputStream.read(bytes)
+                if( n != -1) {
+                    val b = String(bytes, 0, n, Charsets.UTF_8)
+                    LogUtil.LogMsg(CheckerActivity.javaClass, "蓝牙服务器接收到数据$b")
+                    id_wuziqi.post {
+                        id_wuziqi.setChess(b)
+                    }
+                }
+            }
+        }
+    }
+
+
+    fun outPut(string: String){
+//        LogUtil.LogMsg(this@CheckerActivity.javaClass,string)
+        if(mSocket.isConnected){
+        //指定发送的数据已经数据编码，编码统一，不然会乱码
+            mSocket.outputStream.write(string.toByteArray());
+            mSocket.outputStream.flush();
+        }
+    }
+
+//    class ConnectedThread {
+//        socket.
+//    }
 }
+
+
+
+
