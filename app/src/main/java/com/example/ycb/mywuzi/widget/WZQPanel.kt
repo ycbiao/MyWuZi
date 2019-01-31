@@ -180,6 +180,27 @@ class WZQPanel : View{
         return false
     }
 
+    //蓝牙模式下悔棋
+    fun retractWhiteBlue() : Boolean{
+        if(mIsWhite){
+            if(mWhitePieceArray.size == 0 || mBlackPieceArray.size == 0){
+                (context as BaseActivity).showToast("棋盘上棋子数量不够")
+                return false
+            }else{
+                var whiteP = mWhitePieceArray.get(mWhitePieceArray.size -1);
+                var blackP = mBlackPieceArray.get(mBlackPieceArray.size -1);
+                mWhitePieceArray.remove(whiteP)
+                mBlackPieceArray.remove(blackP)
+                invalidate()
+                blueListener?.onChess("1,${whiteP.x},${whiteP.y},${blackP.x},${blackP.y}")
+                return true
+            }
+        }else
+            return false
+    }
+
+
+
     //人人模式下悔棋
     fun retractWhiteRenRen() : Boolean{
         if(mWhitePieceArray.size == 0){
@@ -212,6 +233,22 @@ class WZQPanel : View{
         return false
     }
 
+
+    //通过蓝牙接收棋子
+    fun setChessbyBlue(string: String){
+        var chess = string.split(",")
+        if(chess[0].equals("0")){//0为对方下棋的坐标
+            mBlackPieceArray.add(Point(chess[1].toInt(),chess[2].toInt()))
+            mIsWhite = !mIsWhite
+            invalidate()
+        }else if(chess[0].equals("1")){//1为对方悔棋的状态
+            var blackP = Point(chess[1].toInt(),chess[2].toInt())
+            var whiteP = Point(chess[3].toInt(),chess[4].toInt())
+            mWhitePieceArray.remove(whiteP)
+            mBlackPieceArray.remove(blackP)
+            invalidate()
+        }
+    }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val widthSize = View.MeasureSpec.getSize(widthMeasureSpec)
@@ -506,8 +543,8 @@ class WZQPanel : View{
                     if (mIsWhite) {
                         mWhitePieceArray.add(p)
                         blueListener?.onChess("0,${p.x},${p.y}")
+                        mIsWhite = !mIsWhite
                     }
-                    mIsWhite = !mIsWhite
                     invalidate()
                 }
             }
@@ -522,16 +559,6 @@ class WZQPanel : View{
         var yP = ((y - (RATIO_PIECE_OF_LINE_HEIGHT/2*mLineHeight)) / mLineHeight).toInt()
         return Point(xP, yP)
     }
-
-    fun setChess(string: String){
-        var chess = string.split(",")
-        if(chess[0].equals("0")){
-            mBlackPieceArray.add(Point(chess[1].toInt(),chess[2].toInt()))
-            mIsWhite = !mIsWhite
-            invalidate()
-        }
-    }
-
 
     /**
      * 当View被销毁时需要保存游戏数据
@@ -574,5 +601,14 @@ class WZQPanel : View{
 
     fun setOnBlueChessListener(listener:OnBlueChessListener){
         this.blueListener = listener
+    }
+
+    //是否为客户端
+    fun setIsClient(b: Boolean){
+         if(!b){
+             mIsWhite = true
+         }else{
+             mIsWhite = false
+         }
     }
 }

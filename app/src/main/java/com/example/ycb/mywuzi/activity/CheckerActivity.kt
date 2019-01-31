@@ -3,6 +3,7 @@ package com.example.ycb.mywuzi.activity
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
 import android.os.Bundle
 import android.support.v7.app.AlertDialog
 import android.text.Html
@@ -30,6 +31,7 @@ import kotlin.concurrent.timerTask
 import x.y.h.i
 import android.system.Os.socket
 import com.example.ycb.mywuzi.widget.WZQPanel
+import java.lang.Exception
 import kotlin.concurrent.thread
 
 
@@ -160,6 +162,32 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
                         outPut(s)
                     }
                 })
+                btn_retract_black.visibility = View.GONE
+                id_wuziqi.setIsClient(bIsClient)
+                btn_retract_white.run {
+                    setOnClickListener {
+                        alertBuilder?.setPositiveButton("确认",
+                            DialogInterface.OnClickListener { dialog, which ->
+                                var isSuccess = PointsManager.getInstance(this@CheckerActivity).spendPoints(integralConsume);
+                                if(isSuccess){
+                                    id_wuziqi.retractWhiteBlue()
+                                }
+                                else{
+                                    showToast("对不起,您的积分不足,请先获取积分")
+                                }
+                            })
+                        alertBuilder?.setNegativeButton("取消",
+                            DialogInterface.OnClickListener { dialog, which -> this@CheckerActivity.finish() })
+                        alertBuilder?.setCancelable(false)
+                        alertBuilder?.setTitle("确定花费${integralConsume.toInt()}积分悔棋吗?")
+                        alertDialog = alertBuilder?.create()
+                        alertDialog?.show()
+                    }
+                    text = "悔白棋(${integralConsume.toInt()}积分)"
+
+                }
+
+                initTime()
             }
         }
     }
@@ -260,6 +288,9 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
     override fun onDestroy() {
         super.onDestroy()
         PointsManager.getInstance(this).unRegisterNotify(this)
+        if(mSocket.isConnected){
+            mSocket.close()
+        }
     }
 
     override fun onBackPressed() {
@@ -288,30 +319,36 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
 
     companion object {
         lateinit var mSocket: BluetoothSocket
+        var bIsClient: Boolean = true
         fun manageConnectedSocket(socket: BluetoothSocket,isClient: Boolean){
             mSocket = socket
+            bIsClient = isClient
         }
     }
 
-
     fun inPut(){
-        while (true){
-            if(mSocket.isConnected){
-                val inputStream = mSocket.inputStream
-                val bytes = ByteArray(1024)
-                var n: Int
-                n = inputStream.read(bytes)
-                if( n != -1) {
-                    val b = String(bytes, 0, n, Charsets.UTF_8)
-                    LogUtil.LogMsg(CheckerActivity.javaClass, "蓝牙服务器接收到数据$b")
-                    id_wuziqi.post {
-                        id_wuziqi.setChess(b)
+        try {
+            while (true){
+                if(mSocket.isConnected){
+                    val bytes = ByteArray(1024)
+                    var n: Int
+                    n = mSocket.inputStream.read(bytes)
+                    if( n != -1) {
+                        val b = String(bytes, 0, n, Charsets.UTF_8)
+                        LogUtil.LogMsg(CheckerActivity.javaClass, "蓝牙服务器接收到数据$b")
+                        id_wuziqi.post {
+                            id_wuziqi.setChessbyBlue(b)
+                        }
                     }
                 }
             }
+        }catch (ex:Exception){
+            id_wuziqi.post{
+                showToast("连接已断开")
+                finish()
+            }
         }
     }
-
 
     fun outPut(string: String){
 //        LogUtil.LogMsg(this@CheckerActivity.javaClass,string)
@@ -321,10 +358,6 @@ class CheckerActivity : BaseActivity() , PointsChangeNotify, PointsEarnNotify {
             mSocket.outputStream.flush();
         }
     }
-
-//    class ConnectedThread {
-//        socket.
-//    }
 }
 
 

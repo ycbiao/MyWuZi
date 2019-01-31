@@ -165,6 +165,7 @@ class BlueToothFindActivity : BaseActivity()  {
             registerReceiver(bluetoothReceiver, intentFilter)
             //开始扫描周围的可见的蓝牙设备
             bluetoothAdapter.startDiscovery()
+            tv_bluetooth_hint.text = "正在扫描蓝牙设备..."
         }
     }
 
@@ -177,16 +178,29 @@ class BlueToothFindActivity : BaseActivity()  {
             val action = intent.action
             val bluetoothDevice = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
             when (action) {
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED ->{
+                    tv_bluetooth_hint.text = "停止扫描蓝牙设备"
+                }
                 BluetoothDevice.ACTION_FOUND ->{
                     if (!devices.contains(bluetoothDevice)) {
                         //设备数组获得新的设备信息并更新adapter
-                        addressDevices.add(
-                            BluetoothDeviceModel(
-                                bluetoothDevice.name,
-                                bluetoothDevice.address,
-                                bluetoothDevice.bondState
+                        if(bluetoothDevice.bondState == BluetoothDevice.BOND_BONDED || (bluetoothDevice.name != null && !bluetoothDevice.name.isEmpty())){
+                            addressDevices.add(0,
+                                BluetoothDeviceModel(
+                                    bluetoothDevice.name,
+                                    bluetoothDevice.address,
+                                    bluetoothDevice.bondState
+                                )
                             )
-                        )
+                        }else{
+                            addressDevices.add(
+                                BluetoothDeviceModel(
+                                    bluetoothDevice.name,
+                                    bluetoothDevice.address,
+                                    bluetoothDevice.bondState
+                                )
+                            )
+                        }
                         //添加新的设备到设备Arraylist
                         devices.add(bluetoothDevice)
                         LogUtil.LogMsg(this@BlueToothFindActivity.javaClass,"BluetoothReceiver =" +bluetoothDevice.address)

@@ -137,7 +137,7 @@
     app:layout_constraintRight_toRightOf="parent"
     android:textColor="#fd5c02"/>
     <TextView
-            android:text=""
+            android:text="落子顺序"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/tv_checker_turning" android:layout_marginTop="8dp"
